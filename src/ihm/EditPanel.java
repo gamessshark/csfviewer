@@ -16,13 +16,14 @@ public class EditPanel extends JPanel {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-
+	private JTextArea contentFile;
+	
 	public EditPanel() {
 		super();
 		
 		this.setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
 		this.setSize(500, 768);
-		JTextArea contentFile = new JTextArea();
+		contentFile = new JTextArea();
 		JLabel fileName = new JLabel("No fil selected");
 		
 		fileName.setLabelFor(contentFile);
@@ -38,6 +39,10 @@ public class EditPanel extends JPanel {
 
 		
 		this.setVisible(true);
+	}
+	
+	public void setText(String text) {
+		contentFile.setText(text);
 	}
 	
 }

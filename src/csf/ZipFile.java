@@ -45,8 +45,38 @@ public class ZipFile {
 		return headOffset;
 	}
 	
+	public int getUncompressedSize() {
+		return sizeCompressed;
+	}
+	
+	public int getCompressedSize() {
+		return sizeUncompressed;
+	}
+	
+	public int getHeaderSize() {
+		return 30 + fileName.length() + extraFieldLength;
+	}
+	
+	public int getCompressionMethod() {
+		return compressionMethod;
+	}
+	
 	public void setCompressedData(byte[] data) {
 		
+	}
+	
+	public int getVersion() {
+		return versionExtract;
+	}
+	
+	public int getCrc32() {
+		return crc32;
+	}
+	
+	public int getBitFlag(int lowBitNum) {
+		int c = bitFlag >> lowBitNum;
+		c = c & 1;
+		return c;
 	}
 	
 	public void extract() {
@@ -57,8 +87,8 @@ public class ZipFile {
 		
 	}
 	
-	public void get() {
-		
+	public String getName() {
+		return fileName;
 	}
 	
 }

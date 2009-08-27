@@ -22,6 +22,10 @@ public class Main {
 
 		
 		Fenetre.getInstance();
+		
+		
+			
+		
 	}
 
 }

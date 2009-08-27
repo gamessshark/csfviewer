@@ -8,7 +8,7 @@ import java.io.UTFDataFormatException;
 
 public class LittleEndianDataInputStream extends FilterInputStream {
 
-	protected LittleEndianDataInputStream(InputStream in) {
+	public LittleEndianDataInputStream(InputStream in) {
 		super(in);
 	}
 
@@ -150,7 +150,7 @@ public class LittleEndianDataInputStream extends FilterInputStream {
 	  }
 
 	  public final int skipBytes(int n) throws IOException {
-	    for (int i = 0; i < n; i += (int) skip(n - i));
+	    for (int i = 0; i < n; i+= (int)skip(n - i));
 	    return n; 
 	  }
 

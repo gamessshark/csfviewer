@@ -1,12 +1,18 @@
 package csf;
 
-import java.io.BufferedInputStream;
+import ihm.Fenetre;
+
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 public class Csf {
 
@@ -28,8 +34,10 @@ public class Csf {
 			fileList = new HashMap<String, ZipFile>();
 			
 			fileStream = new FileInputStream(filePath);
+
+			csfReader = new LittleEndianDataInputStream(fileStream);
 			
-			csfReader = new LittleEndianDataInputStream(new BufferedInputStream(fileStream));
+			fileStream.getChannel().position(0);
 			
 			this.parseFile();
 			
@@ -38,7 +46,7 @@ public class Csf {
 			erreurMessage = "Fichier inexistant";
 		} catch (IOException e) {
 			isValid = false;
-			erreurMessage = "Erreur de lecture";
+			erreurMessage = "Erreur de lecture\n"+ e.getMessage();
 		}
 	}
 	
@@ -76,7 +84,7 @@ public class Csf {
 		
 		length = csfReader.available();
 		//We mark the stream
-		csfReader.mark(length);
+		//csfReader.mark(length);
 		csfReader.skipBytes(length - 22);
 		
 		sizeHeader = csfReader.read(endHeader);
@@ -112,7 +120,9 @@ public class Csf {
 		}
 		
 		//Once we are here we search the tree structure first definition
-		csfReader.reset();
+		//The virtualOffset is often 
+		fileStream.getChannel().position((virtualStartOffset - 0x10000 < 0) ? 0 : virtualStartOffset - 0x10000);
+		
 		
 		for(int i=0; i<length; i++) {
 			testByte = csfReader.readByte();
@@ -134,7 +144,7 @@ public class Csf {
 				}
 			}
 		}
-				
+		
 		if (!foundStruct) {
 			isValid = false;
 			erreurMessage = "This is not a csf file";
@@ -145,7 +155,7 @@ public class Csf {
 		realStartOffset = length - (csfReader.available() + 4);
 		
 		//On se replace au debut
-		csfReader.reset();
+		fileStream.getChannel().position(0);
 		csfReader.skipBytes(realStartOffset);
 		
 		//Read the structural header
@@ -159,8 +169,8 @@ public class Csf {
 			short modDate = csfReader.readShort();
 			
 			int crc = csfReader.readInt();
-			int csize = csfReader.readInt();
 			int ucsize = csfReader.readInt();
+			int csize = csfReader.readInt();
 			
 			short nameSize = csfReader.readShort();
 			short extraSize = csfReader.readShort();
@@ -182,9 +192,53 @@ public class Csf {
 			
 			ZipFile newZipFile = new ZipFile(version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, fileName, comment, byteExtra, iattr, eattr, offset);
 			
-			fileList.put(fileName, newZipFile);
+			fileList.put(fileName.toLowerCase(), newZipFile);
+			
 		}
 	}
+	
+	
+
+	
+	public byte[] getData(ZipFile zipToOpen) throws IOException, DataFormatException {
+		byte[] data = new byte[zipToOpen.getUncompressedSize()];
+		byte[] dataC = new byte[zipToOpen.getCompressedSize() - 12];
+		byte[] dataZip = new byte[zipToOpen.getCompressedSize() - 12];
+		byte[] encHead = new byte[12];
+		
+		int offsetHeader = zipToOpen.getOffset() + zipToOpen.getHeaderSize();
+		
+		fileStream.getChannel().position(offsetHeader);
+		
+		/** Step 1 Init the keys **/
+		String password = "66b4427013838ceb5b275d5ba884b0ed9df353e0dc6220955e008d9d";
+		
+		csfReader.read(encHead);
+		csfReader.read(dataC);
+		
+		ZipCrypto.InitCipher(password);
+		
+		encHead = ZipCrypto.DecryptMessage(encHead, 12);
+		
+		//Verification of the password
+		//First with the high order byte of the crc
+		//But Almost the time, it's with the high order byte of the lastModTime
+		
+		//System.out.println(encHead[11]);
+		
+		dataZip = ZipCrypto.DecryptMessage(dataC, zipToOpen.getCompressedSize() - 12);
+		
+		//Now we decompress the data
+		Inflater inf = new Inflater(true);
+		inf.setInput(dataZip);
+		
+		inf.inflate(data);
+		inf.end();
+		
+		return data;
+	}
+	
+	
 	
 	public HashMap<String, ZipFile>getFileList() {
 		return fileList;

@@ -1,5 +1,7 @@
 package ihm;
 
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
@@ -7,6 +9,7 @@ import java.util.Set;
 import javax.swing.JTree;
 import javax.swing.JScrollPane;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
 
 import csf.ZipFile;
 
@@ -19,7 +22,7 @@ public class TreePanel extends JScrollPane {
 	 */
 	private JTree zipTree;
 	private HashMap<String, ZipFile> zipList;
-	private DefaultMutableTreeNode root = new DefaultMutableTreeNode("CSF");
+	private DefaultMutableTreeNode root = new DefaultMutableTreeNode("CSF                                                                 ");
 	
 	private static final long serialVersionUID = 1L;
 	public TreePanel() {
@@ -31,11 +34,66 @@ public class TreePanel extends JScrollPane {
 		
 	}
 	
+	public void callContextMenu() {
+		
+	}
+	
 
 	public void show(HashMap<String, ZipFile> zipList) {
 		this.zipList = zipList;
 		//Create the root
 		this.createTree();
+		//Add the event controller
+		zipTree.addMouseListener(new MouseListener() {
+
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getClickCount() >= 2 && e.getButton() == MouseEvent.BUTTON1) {
+					//Build the file name
+					TreeNode node = (DefaultMutableTreeNode)zipTree.getLastSelectedPathComponent();
+
+					String fileName = "";
+					while (node.getParent() != null) {
+						if (fileName.equals("")) {
+							fileName = node.toString();
+						} else {
+							fileName = node.toString()+"/"+fileName;
+						}
+						node = node.getParent();
+					}
+					
+					Fenetre.getInstance().openZipFile(fileName);
+				}
+				if (e.getButton() == MouseEvent.BUTTON3) {
+					
+				}
+			}
+
+			@Override
+			public void mouseEntered(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void mouseExited(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void mousePressed(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+		});
 	}
 	
 	private void createTree() {

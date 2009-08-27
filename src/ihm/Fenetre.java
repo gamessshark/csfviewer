@@ -1,12 +1,16 @@
 package ihm;
 
 import java.awt.BorderLayout;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.zip.DataFormatException;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
 
 import csf.Csf;
+import csf.ZipFile;
 
 public class Fenetre extends JFrame {
 
@@ -90,8 +94,6 @@ public class Fenetre extends JFrame {
 			myTreePanel.show(csfFile.getFileList());
 			//On ajoute sur le menu
 
-			
-			System.out.println("LOL ?");
 		}
 	}
 	
@@ -117,6 +119,23 @@ public class Fenetre extends JFrame {
 		}
 		
 		System.exit(0);
+	}
+
+	public void openZipFile(String fileName) {
+		try {
+			ZipFile zipToOpen;
+			if (csfFile.getFileList().containsKey(fileName)) {
+				byte[] dataFile;
+				zipToOpen = csfFile.getFileList().get(fileName);
+				dataFile = csfFile.getData(zipToOpen);
+				
+				myEditPanel.setText(new String(dataFile, Charset.forName("EUC-KR")));
+			}
+		} catch (IOException e) {
+			showErreur(e.getMessage());
+		} catch (DataFormatException e) {
+			showErreur(e.getMessage());
+		}
 	}
 	
 

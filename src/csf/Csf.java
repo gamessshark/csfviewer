@@ -1,7 +1,5 @@
 package csf;
 
-import ihm.Fenetre;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,9 +8,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
 
 public class Csf {
 
@@ -26,11 +24,13 @@ public class Csf {
 	private int virtualStartOffset;
 	private int realStartOffset;
 	private String erreurMessage;
+	private String filePath;
 	
 	private HashMap<String, ZipFile> fileList;
 	
-	public Csf(String filePath) {
+	public Csf(String pFilePath) {
 		try {
+			filePath = pFilePath;
 			fileList = new HashMap<String, ZipFile>();
 			
 			fileStream = new FileInputStream(filePath);
@@ -50,12 +50,20 @@ public class Csf {
 		}
 	}
 	
+	public String getFilePath() {
+		return filePath;
+	}
+	
 	public boolean isValid() {
 		return isValid;
 	}
 	
 	public boolean isModify() {
 		return isModify;
+	}
+	
+	public void setModify(boolean mod) {
+		isModify = mod;
 	}
 	
 	public String getErreurMessage() {
@@ -161,23 +169,23 @@ public class Csf {
 		//Read the structural header
 		while(csfReader.readInt() == (int)0x02014b50) {
 			
-			csfReader.readShort();
-			short version = csfReader.readShort();
-			short flag = csfReader.readShort();
-			short method = csfReader.readShort();
-			short modTime = csfReader.readShort();
-			short modDate = csfReader.readShort();
+			int versionMade = csfReader.readUnsignedShort();
+			int version = csfReader.readUnsignedShort();
+			int flag = csfReader.readUnsignedShort();
+			int method = csfReader.readUnsignedShort();
+			int modTime = csfReader.readUnsignedShort();
+			int modDate = csfReader.readUnsignedShort();
 			
 			int crc = csfReader.readInt();
-			int ucsize = csfReader.readInt();
 			int csize = csfReader.readInt();
+			int ucsize = csfReader.readInt();
 			
-			short nameSize = csfReader.readShort();
-			short extraSize = csfReader.readShort();
-			short commentSize = csfReader.readShort();
+			int nameSize = csfReader.readUnsignedShort();
+			int extraSize = csfReader.readUnsignedShort();
+			int commentSize = csfReader.readUnsignedShort();
 			
-			short disk = csfReader.readShort();
-			short iattr = csfReader.readShort();
+			int disk = csfReader.readUnsignedShort();
+			int iattr = csfReader.readUnsignedShort();
 			int eattr = csfReader.readInt();
 			int offset = csfReader.readInt();
 			
@@ -190,7 +198,7 @@ public class Csf {
 			csfReader.read(byteComment);
 			String comment = new String(byteComment, Charset.forName("UTF-8"));
 			
-			ZipFile newZipFile = new ZipFile(version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, fileName, comment, byteExtra, iattr, eattr, offset);
+			ZipFile newZipFile = new ZipFile(versionMade, version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, fileName, comment, byteExtra, iattr, eattr, offset);
 			
 			fileList.put(fileName.toLowerCase(), newZipFile);
 			
@@ -200,7 +208,7 @@ public class Csf {
 	
 
 	
-	public byte[] getData(ZipFile zipToOpen) throws IOException, DataFormatException {
+	public void setData(ZipFile zipToOpen) throws IOException, DataFormatException {
 		byte[] data = new byte[zipToOpen.getUncompressedSize()];
 		byte[] dataC = new byte[zipToOpen.getCompressedSize() - 12];
 		byte[] dataZip = new byte[zipToOpen.getCompressedSize() - 12];
@@ -220,6 +228,7 @@ public class Csf {
 		
 		encHead = ZipCrypto.DecryptMessage(encHead, 12);
 		
+		//TODO
 		//Verification of the password
 		//First with the high order byte of the crc
 		//But Almost the time, it's with the high order byte of the lastModTime
@@ -235,7 +244,87 @@ public class Csf {
 		inf.inflate(data);
 		inf.end();
 		
-		return data;
+		zipToOpen.setHeader(encHead);
+		zipToOpen.setData(data);
+	}
+	
+	public void save(File newFile) {
+		if (!isModify) {
+			if (!filePath.equals(newFile.getPath())) {
+				//On fais une simple copie
+				
+			}
+		} else {
+			//Sinon on recréer totalement l'archive
+			File tempFile = new File(newFile.getPath()+"_temp");
+			
+			try {
+				
+				tempFile.createNewFile();
+				FileOutputStream outputStream = new FileOutputStream(tempFile);
+				LittleEndianDataOutputStream csfWriter = new LittleEndianDataOutputStream(outputStream);
+				
+				Iterator<ZipFile> listZipFile = fileList.values().iterator();
+				
+				//For each file
+				while(listZipFile.hasNext()) {
+					ZipFile fileToWrite = listZipFile.next();
+					
+					fileToWrite.calcCompressedData();
+					
+					long fileOffset = outputStream.getChannel().position();
+					
+					csfWriter.write(fileToWrite.getLocalHeader());
+					
+					if (fileToWrite.isSave()) {
+						System.out.println(fileToWrite.getCompressedSize());
+						csfWriter.write(fileToWrite.getCompressedData(), 0, fileToWrite.getCompressedSize());
+					} else {
+						//Searching the data
+						fileStream.getChannel().position(fileToWrite.getOffset() + fileToWrite.getHeaderSize());
+						byte[] data = new byte[fileToWrite.getCompressedSize()];
+						csfReader.read(data);
+						csfWriter.write(data);
+					}
+					csfWriter.write(fileToWrite.getDataDescriptor());
+					
+					fileToWrite.setOffset((int)fileOffset);
+				}
+				
+				long newRealOffset = outputStream.getChannel().position();
+				
+				listZipFile = fileList.values().iterator();
+				
+				while(listZipFile.hasNext()) {
+					csfWriter.write(listZipFile.next().getFileHeader());
+				}
+				
+				csfWriter.writeByte(0x50);
+				csfWriter.writeByte(0x4b);
+				csfWriter.writeByte(0x05);
+				csfWriter.writeByte(0x06);
+				
+				csfWriter.writeInt(0x54235423);
+				csfWriter.writeLong(fileDesc);
+				
+				long newVirtualOffset = (virtualStartOffset - realStartOffset) + newRealOffset;
+				
+				csfWriter.writeInt((int)newVirtualOffset);
+				
+				csfWriter.writeShort((int)0x5423);
+				
+				csfWriter.close();
+				
+				
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
 	}
 	
 	

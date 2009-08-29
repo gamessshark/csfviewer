@@ -54,5 +54,17 @@ public class ZipCrypto {
         return PlainText;
     }
 	
+	public static byte[] EncryptMessage(byte[] plaintext, int length)
+    {
+        byte[] CipherText = new byte[length];
+        for (int i = 0; i < length; i++)
+        {
+            byte C = plaintext[i];
+            CipherText[i] = (byte)(plaintext[i] ^ MagicByte());
+            UpdateKeys(C);
+        }
+        return CipherText;
+    }
+	
 	
 }

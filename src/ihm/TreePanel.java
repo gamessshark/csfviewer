@@ -2,6 +2,7 @@ package ihm;
 
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
@@ -96,12 +97,28 @@ public class TreePanel extends JScrollPane {
 		});
 	}
 	
+	private Iterator<String> triAlpha(Set<String> listFile) {
+		ArrayList<String> list = new ArrayList<String>(listFile);
+		String temp;
+		for (int i = 0; i < list.size(); i++) {
+			int min = i;
+			for( int j = i ; j < list.size(); j++) {
+				if( list.get(min).compareTo( list.get(j)) > 0 ) {
+					min = j;
+				}
+				temp = list.get(i);
+				list.set(i, list.get(min));
+				list.set(min, temp);
+			}
+		}
+		
+		return list.iterator();
+	}
+	
 	private void createTree() {
 		HashMap<String, DefaultMutableTreeNode> repList = new HashMap<String, DefaultMutableTreeNode>();
-		
 		Set<String> listFile = zipList.keySet();
-		
-		Iterator<String> i = listFile.iterator();
+		Iterator<String> i = triAlpha(listFile);
 		
 		while(i.hasNext()) {
 			String file = i.next();
@@ -110,13 +127,11 @@ public class TreePanel extends JScrollPane {
 			
 			DefaultMutableTreeNode tempRep = root;
 			if (listRep.length > 1) {
-				String fileName = listRep[listRep.length - 1];
 				String repName = "";
 				for(int j = 0; j<listRep.length - 1; j++) {
 					repName += listRep[j] + "/";
 					if (repList.containsKey(repName)) {
 						tempRep = repList.get(repName);
-						
 					} else {
 						DefaultMutableTreeNode newRep = new DefaultMutableTreeNode(listRep[j]);
 						repList.put(repName, newRep);
@@ -124,7 +139,21 @@ public class TreePanel extends JScrollPane {
 						tempRep = newRep;
 					}
 				}
-				tempRep.add(new DefaultMutableTreeNode(fileName));
+			}
+		}
+		
+		i = triAlpha(listFile);
+		while(i.hasNext()) {
+			String file = i.next();
+			String[] listRep = file.split("/");
+			
+			if (listRep.length > 1) {
+				String fileName = listRep[listRep.length - 1];
+				String repName = "";
+				for(int j = 0; j<listRep.length - 1; j++) {
+					repName += listRep[j] + "/";
+				}
+				repList.get(repName).add(new DefaultMutableTreeNode(fileName));
 			} else {
 				root.add(new DefaultMutableTreeNode(file));
 			}

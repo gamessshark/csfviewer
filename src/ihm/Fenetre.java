@@ -1,8 +1,8 @@
 package ihm;
 
 import java.awt.BorderLayout;
+import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.zip.DataFormatException;
 
 import javax.swing.JFrame;
@@ -25,6 +25,7 @@ public class Fenetre extends JFrame {
 	private EditPanel myEditPanel = new EditPanel();
 	private Csf csfFile = null;
 	private JSplitPane split;
+	private ZipFile zipOpened = null;
 
 	
 	private Fenetre() {
@@ -48,6 +49,10 @@ public class Fenetre extends JFrame {
         this.setVisible(true);
 
 		
+	}
+	
+	public Csf getCsf() {
+		return csfFile;
 	}
 	
 	public static Fenetre getInstance() {
@@ -97,6 +102,25 @@ public class Fenetre extends JFrame {
 		}
 	}
 	
+	public void saveFile() {
+		saveFile(csfFile.getFilePath());
+	}
+	
+	public void saveFile(String filePath) {
+		
+		try {
+			File newFile = new File(filePath);
+			if (newFile.createNewFile()) {
+				
+			} else {
+				JOptionPane.showConfirmDialog(this, "Are you sure to overwrite this file ?");
+			}
+			csfFile.save(newFile);
+		} catch (IOException e) {
+			showErreur(e.getMessage());
+		}
+	}
+	
 	public void closeFile() {
 		//On libère les ressources
 		csfFile.close();
@@ -125,11 +149,13 @@ public class Fenetre extends JFrame {
 		try {
 			ZipFile zipToOpen;
 			if (csfFile.getFileList().containsKey(fileName)) {
-				byte[] dataFile;
+				if (zipOpened != null && zipOpened.isModify()) {
+					JOptionPane.showConfirmDialog(this, "Voulez vous enregistrer le fichier avant de continuer ? Attention toute modification non enregistré sera perdue.");
+				}
 				zipToOpen = csfFile.getFileList().get(fileName);
-				dataFile = csfFile.getData(zipToOpen);
-				
-				myEditPanel.setText(new String(dataFile, Charset.forName("EUC-KR")));
+				csfFile.setData(zipToOpen);
+				myEditPanel.setFile(zipToOpen);
+				zipOpened = zipToOpen;
 			}
 		} catch (IOException e) {
 			showErreur(e.getMessage());
@@ -137,6 +163,19 @@ public class Fenetre extends JFrame {
 			showErreur(e.getMessage());
 		}
 	}
+	
+	public void reloadFile() {
+		try {
+			csfFile.setData(zipOpened);
+			myEditPanel.setFile(zipOpened);
+		} catch (IOException e) {
+			showErreur(e.getMessage());
+		} catch (DataFormatException e) {
+			showErreur(e.getMessage());
+		}
+	}
+	
+	
 	
 
 }

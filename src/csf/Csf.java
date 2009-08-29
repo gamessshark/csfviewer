@@ -1,6 +1,7 @@
 package csf;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -270,13 +271,9 @@ public class Csf {
 	}
 	
 	public void save(File newFile) {
-			//Sinon on recréer totalement l'archive
-			File tempFile = new File(newFile.getPath()+"_temp");
-			
 			try {
 				
-				tempFile.createNewFile();
-				FileOutputStream outputStream = new FileOutputStream(tempFile);
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 				LittleEndianDataOutputStream csfWriter = new LittleEndianDataOutputStream(outputStream);
 				
 				Iterator<ZipFile> listZipFile = sortFileListByOffset();
@@ -287,7 +284,7 @@ public class Csf {
 					
 					fileToWrite.calcCompressedData();
 					
-					long fileOffset = outputStream.getChannel().position();
+					long fileOffset = csfWriter.written;
 					
 					csfWriter.write(fileToWrite.getLocalHeader());
 					
@@ -305,7 +302,7 @@ public class Csf {
 					fileToWrite.setOffset((int)fileOffset);
 				}
 				
-				long newRealOffset = outputStream.getChannel().position();
+				long newRealOffset = csfWriter.written;
 				
 				listZipFile = sortFileListByOffset();
 				
@@ -329,6 +326,16 @@ public class Csf {
 				
 				csfWriter.close();
 				
+				//On recris
+				//On supprime le fichier et on le recrée
+				String filePath = newFile.getPath();
+				newFile.delete();
+				newFile = new File(filePath);
+				newFile.createNewFile();
+				
+				FileOutputStream fileOutStream = new FileOutputStream(newFile);
+				outputStream.writeTo(fileOutStream);
+				fileOutStream.close();
 				
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block

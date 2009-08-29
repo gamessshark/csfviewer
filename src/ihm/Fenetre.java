@@ -30,7 +30,7 @@ public class Fenetre extends JFrame {
 	
 	private Fenetre() {
 		//Titre
-		this.setTitle("Csf Viewer");
+		this.setTitle("Csf Editor");
 		//Taille
 		this.setSize(1024, 768);
 		//Position center
@@ -110,10 +110,11 @@ public class Fenetre extends JFrame {
 		
 		try {
 			File newFile = new File(filePath);
-			if (newFile.createNewFile()) {
-				
-			} else {
-				JOptionPane.showConfirmDialog(this, "Are you sure to overwrite this file ?");
+			if (!newFile.createNewFile()) {
+				int returnOption = JOptionPane.showConfirmDialog(this, "Are you sure to overwrite this file ?", "Overwrite", JOptionPane.YES_NO_OPTION);
+				if (returnOption != JOptionPane.YES_OPTION) {
+					return;
+				}
 			}
 			csfFile.save(newFile);
 		} catch (IOException e) {

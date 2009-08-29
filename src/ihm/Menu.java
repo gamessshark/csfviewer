@@ -56,6 +56,14 @@ public class Menu extends JMenuBar {
 	
 	}
 	
+	public class SaveListener implements ActionListener{
+		
+		public void actionPerformed(ActionEvent e) {
+			Fenetre.getInstance().saveFile();
+		}
+		
+	}
+	
 	public class SaveAsListener implements ActionListener{
 
 		public void actionPerformed(ActionEvent e) {

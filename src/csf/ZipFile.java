@@ -54,8 +54,6 @@ public class ZipFile {
 		externalAttributes = eattr;
 		headOffset = offset;
 		this.id = id;
-		
-		System.out.println(fileName+ " : " + id);
 	}
 	
 	public int getId() {
@@ -78,7 +76,7 @@ public class ZipFile {
 						
 			//Encode the data
 			byte[] dataEncode = ZipCrypto.EncryptMessage(data, compressedSize);
-			System.out.println(dataEncode.length);
+			
 			this.sizeCompressed = compressedSize + 12;
 			compressedData = new byte[compressedSize + 12];
 			
@@ -89,7 +87,6 @@ public class ZipFile {
 					compressedData[i] = dataEncode[i - 12];
 				}
 			}
-			System.out.println(compressedData.length);
 			
 		}
 	}

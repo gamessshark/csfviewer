@@ -3,6 +3,7 @@ package csf;
 import java.nio.charset.Charset;
 import java.util.zip.Deflater;
 
+
 public class ZipFile {
 	
 	private int crc32;
@@ -33,8 +34,9 @@ public class ZipFile {
 	
 	private boolean isModify = false;
 	private boolean isSave = false;
+	private int id;
 	
-	public ZipFile(int versionM, int version, int flag, int method, int modTime, int modDate, int crc, int sizeC, int sizeUC, int diskNum, int extraSize, String name, String fileComment, byte[] extraData, int iattr, int eattr, int offset) {
+	public ZipFile(int id, int versionM, int version, int flag, int method, int modTime, int modDate, int crc, int sizeC, int sizeUC, int diskNum, int extraSize, String name, String fileComment, byte[] extraData, int iattr, int eattr, int offset) {
 		versionMadeBy = versionM;
 		versionExtract = version;
 		bitFlag = flag;
@@ -51,7 +53,13 @@ public class ZipFile {
 		internalAttributes = iattr;
 		externalAttributes = eattr;
 		headOffset = offset;
+		this.id = id;
 		
+		System.out.println(fileName+ " : " + id);
+	}
+	
+	public int getId() {
+		return id;
 	}
 	
 	public void calcCompressedData() {
@@ -67,13 +75,7 @@ public class ZipFile {
 			def.finish();
 			
 			int compressedSize = def.deflate(data);
-			
-			System.out.println(compressedSize);
 						
-			System.out.println(def.getBytesRead());
-			System.out.println(def.getBytesWritten());
-			
-			
 			//Encode the data
 			byte[] dataEncode = ZipCrypto.EncryptMessage(data, compressedSize);
 			System.out.println(dataEncode.length);
@@ -157,6 +159,9 @@ public class ZipFile {
 	public void setData(byte[] data) {
 		this.sizeUncompressed = data.length;
 		this.data = data;
+		java.util.zip.CRC32 newCrc = new java.util.zip.CRC32();
+		newCrc.update(data);
+		this.crc32 = (int)newCrc.getValue();
 	}
 	
 	public byte[] getData() {
@@ -228,14 +233,14 @@ public class ZipFile {
 		//Compression Method
 		localHeader[9] = (byte)((compressionMethod >>> 8) & 0xFF);
 		localHeader[8] = (byte)(compressionMethod & 0xFF);
+		//Last mod time
+		localHeader[11] = (byte)((lastModTime >>> 8) & 0xFF);
+		localHeader[10] = (byte)(lastModTime & 0xFF);
+		//Last mod date
+		localHeader[13] = (byte)((lastModDate >>> 8) & 0xFF);
+		localHeader[12] = (byte)(lastModDate & 0xFF);
 		//We see if the bit flag 3 is set to hide the values :
 		if (this.getBitFlag(3) != 1) {
-			//Last mod time
-			localHeader[11] = (byte)((lastModTime >>> 8) & 0xFF);
-			localHeader[10] = (byte)(lastModTime & 0xFF);
-			//Last mod date
-			localHeader[13] = (byte)((lastModDate >>> 8) & 0xFF);
-			localHeader[12] = (byte)(lastModDate & 0xFF);
 			//Crc32
 			localHeader[17] = (byte)((crc32 >>> 24) & 0xFF);
 			localHeader[16] = (byte)((crc32 >>> 16) & 0xFF);
@@ -252,12 +257,6 @@ public class ZipFile {
 			localHeader[23] = (byte)((sizeUncompressed >>> 8) & 0xFF);
 			localHeader[22] = (byte)(sizeUncompressed & 0xFF);
 		} else {
-			//Last mod time
-			localHeader[10] = (byte)0x00;
-			localHeader[11] = (byte)0x00;
-			//Last mod date
-			localHeader[12] = (byte)0x00;
-			localHeader[13] = (byte)0x00;
 			//Crc32
 			localHeader[14] = (byte)0x00;
 			localHeader[15] = (byte)0x00;
@@ -295,7 +294,7 @@ public class ZipFile {
 	
 	public byte[] getDataDescriptor() {
 		byte[] dataDescriptor;
-		if (this.getBitFlag(3) == 1) {
+		if (this.getBitFlag(3) != 1) {
 			dataDescriptor = new byte[0];
 		} else {
 			dataDescriptor = new byte[16];

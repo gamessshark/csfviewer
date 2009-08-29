@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.zip.DataFormatException;
@@ -166,6 +167,8 @@ public class Csf {
 		fileStream.getChannel().position(0);
 		csfReader.skipBytes(realStartOffset);
 		
+		int id = 0;
+		
 		//Read the structural header
 		while(csfReader.readInt() == (int)0x02014b50) {
 			
@@ -173,8 +176,8 @@ public class Csf {
 			int version = csfReader.readUnsignedShort();
 			int flag = csfReader.readUnsignedShort();
 			int method = csfReader.readUnsignedShort();
-			int modTime = csfReader.readUnsignedShort();
-			int modDate = csfReader.readUnsignedShort();
+			int modTime = csfReader.readChar();
+			int modDate = csfReader.readChar();
 			
 			int crc = csfReader.readInt();
 			int csize = csfReader.readInt();
@@ -198,8 +201,8 @@ public class Csf {
 			csfReader.read(byteComment);
 			String comment = new String(byteComment, Charset.forName("UTF-8"));
 			
-			ZipFile newZipFile = new ZipFile(versionMade, version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, fileName, comment, byteExtra, iattr, eattr, offset);
-			
+			ZipFile newZipFile = new ZipFile(id, versionMade, version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, fileName, comment, byteExtra, iattr, eattr, offset);
+			id++;
 			fileList.put(fileName.toLowerCase(), newZipFile);
 			
 		}
@@ -248,13 +251,25 @@ public class Csf {
 		zipToOpen.setData(data);
 	}
 	
-	public void save(File newFile) {
-		if (!isModify) {
-			if (!filePath.equals(newFile.getPath())) {
-				//On fais une simple copie
-				
+	public Iterator<ZipFile> sortFileListByOffset() {
+		ArrayList<ZipFile> list = new ArrayList<ZipFile>(fileList.values());
+		ZipFile temp;
+		for (int i = 0; i < list.size(); i++) {
+			int min = i;
+			for( int j = i ; j < list.size(); j++) {
+				if( list.get(min).getId() > list.get(j).getId()) {
+					min = j;
+				}
+				temp = list.get(i);
+				list.set(i, list.get(min));
+				list.set(min, temp);
 			}
-		} else {
+		}
+		
+		return list.iterator();
+	}
+	
+	public void save(File newFile) {
 			//Sinon on recréer totalement l'archive
 			File tempFile = new File(newFile.getPath()+"_temp");
 			
@@ -264,7 +279,7 @@ public class Csf {
 				FileOutputStream outputStream = new FileOutputStream(tempFile);
 				LittleEndianDataOutputStream csfWriter = new LittleEndianDataOutputStream(outputStream);
 				
-				Iterator<ZipFile> listZipFile = fileList.values().iterator();
+				Iterator<ZipFile> listZipFile = sortFileListByOffset();
 				
 				//For each file
 				while(listZipFile.hasNext()) {
@@ -277,7 +292,6 @@ public class Csf {
 					csfWriter.write(fileToWrite.getLocalHeader());
 					
 					if (fileToWrite.isSave()) {
-						System.out.println(fileToWrite.getCompressedSize());
 						csfWriter.write(fileToWrite.getCompressedData(), 0, fileToWrite.getCompressedSize());
 					} else {
 						//Searching the data
@@ -293,7 +307,7 @@ public class Csf {
 				
 				long newRealOffset = outputStream.getChannel().position();
 				
-				listZipFile = fileList.values().iterator();
+				listZipFile = sortFileListByOffset();
 				
 				while(listZipFile.hasNext()) {
 					csfWriter.write(listZipFile.next().getFileHeader());
@@ -324,7 +338,7 @@ public class Csf {
 				e.printStackTrace();
 			}
 			
-		}
+		
 	}
 	
 	

@@ -1,7 +1,6 @@
 package csf;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -202,7 +201,7 @@ public class Csf {
 			csfReader.read(byteComment);
 			String comment = new String(byteComment, Charset.forName("UTF-8"));
 			
-			ZipFile newZipFile = new ZipFile(id, versionMade, version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, fileName, comment, byteExtra, iattr, eattr, offset);
+			ZipFile newZipFile = new ZipFile(id, versionMade, version, flag, method, modTime, modDate, crc, csize, ucsize, disk, extraSize, byteFileName, fileName, comment, byteExtra, iattr, eattr, offset);
 			id++;
 			fileList.put(fileName.toLowerCase(), newZipFile);
 			
@@ -273,7 +272,8 @@ public class Csf {
 	public void save(File newFile) {
 			try {
 				
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+				File tempFile = File.createTempFile(newFile.getName(), "c9u_temp");
+				FileOutputStream outputStream = new FileOutputStream(tempFile);
 				LittleEndianDataOutputStream csfWriter = new LittleEndianDataOutputStream(outputStream);
 				
 				Iterator<ZipFile> listZipFile = sortFileListByOffset();
@@ -328,14 +328,8 @@ public class Csf {
 				
 				//On recris
 				//On supprime le fichier et on le recrée
-				String filePath = newFile.getPath();
 				newFile.delete();
-				newFile = new File(filePath);
-				newFile.createNewFile();
-				
-				FileOutputStream fileOutStream = new FileOutputStream(newFile);
-				outputStream.writeTo(fileOutStream);
-				fileOutStream.close();
+				tempFile.renameTo(newFile);
 				
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block

@@ -1,7 +1,16 @@
 package csf;
 
+import ihm.Fenetre;
+
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.zip.Deflater;
+
+import c9u.C9UDecoder;
+import c9u.C9UString;
 
 
 public class ZipFile {
@@ -35,8 +44,11 @@ public class ZipFile {
 	private boolean isModify = false;
 	private boolean isSave = false;
 	private int id;
+	private byte[] fileNameByte;
 	
-	public ZipFile(int id, int versionM, int version, int flag, int method, int modTime, int modDate, int crc, int sizeC, int sizeUC, int diskNum, int extraSize, String name, String fileComment, byte[] extraData, int iattr, int eattr, int offset) {
+	private ArrayList<C9UString> listString;
+	
+	public ZipFile(int id, int versionM, int version, int flag, int method, int modTime, int modDate, int crc, int sizeC, int sizeUC, int diskNum, int extraSize, byte[] byteName,String name, String fileComment, byte[] extraData, int iattr, int eattr, int offset) {
 		versionMadeBy = versionM;
 		versionExtract = version;
 		bitFlag = flag;
@@ -53,7 +65,28 @@ public class ZipFile {
 		internalAttributes = iattr;
 		externalAttributes = eattr;
 		headOffset = offset;
+		fileNameByte = byteName;
 		this.id = id;
+	}
+	
+	public void setListString(ArrayList<C9UString> pListString) {
+		listString = pListString;
+	}
+	
+	public ArrayList<C9UString> getListString() {
+		return listString;
+	}
+	
+	public void rewriteC9UFile() {
+		if (this.getType() == C9Type.C9U) {
+			BufferedInputStream fileBuffStream = new BufferedInputStream(new ByteArrayInputStream(this.getData()));
+			try {
+				this.setData(C9UDecoder.rewriteFile(listString, fileBuffStream));
+				fileBuffStream.close();
+			} catch (IOException e) {
+				Fenetre.getInstance().showErreur(e.getMessage());
+			}
+		}
 	}
 	
 	public int getId() {
@@ -214,7 +247,8 @@ public class ZipFile {
 	        file name (variable size)
 	        extra field (variable size)
 		 */
-		byte[] localHeader = new byte[30 + fileName.length() + extraFieldLength];
+		//File name
+		byte[] localHeader = new byte[30 + fileNameByte.length + extraFieldLength];
 		//Signature
 		localHeader[0] = (byte)0x50;
 		localHeader[1] = (byte)0x4b;
@@ -271,16 +305,14 @@ public class ZipFile {
 			localHeader[25] = (byte)0x00;	
 		}
 		//File name length
-		localHeader[27] = (byte)((fileName.length() >>> 8) & 0xFF);
-		localHeader[26] = (byte)(fileName.length() & 0xFF);
+		localHeader[27] = (byte)((fileNameByte.length >>> 8) & 0xFF);
+		localHeader[26] = (byte)(fileNameByte.length & 0xFF);
 		//Extra field length
 		localHeader[29] = (byte)((extraFieldLength >>> 8) & 0xFF);
 		localHeader[28] = (byte)(extraFieldLength & 0xFF);
 		
-		//File name
-		byte[] textByte = fileName.getBytes();
-		for(int i=0; i<textByte.length; i++) {
-			localHeader[30 + i] = textByte[i];
+		for(int i=0; i<fileNameByte.length; i++) {
+			localHeader[30 + i] = fileNameByte[i];
 		}
 		//Extra field
 		for(int j=0; j<extraField.length; j++) {
@@ -320,7 +352,7 @@ public class ZipFile {
 	}
 	
 	public byte[] getFileHeader() {
-		byte[] fileHeader = new byte[46 + fileName.length() + extraFieldLength + fileComment.length()];
+		byte[] fileHeader = new byte[46 + fileNameByte.length + extraFieldLength + fileComment.length()];
 		
 		//Signature
 		fileHeader[0] = (byte)0x50;
@@ -362,8 +394,8 @@ public class ZipFile {
 		fileHeader[25] = (byte)((sizeUncompressed >>> 8) & 0xFF);
 		fileHeader[24] = (byte)(sizeUncompressed & 0xFF);
 		//File name length
-		fileHeader[29] = (byte)((fileName.length() >>> 8) & 0xFF);
-		fileHeader[28] = (byte)(fileName.length() & 0xFF);
+		fileHeader[29] = (byte)((fileNameByte.length >>> 8) & 0xFF);
+		fileHeader[28] = (byte)(fileNameByte.length & 0xFF);
 		//Extra field length
 		fileHeader[31] = (byte)((extraFieldLength >>> 8) & 0xFF);
 		fileHeader[30] = (byte)(extraFieldLength & 0xFF);
@@ -388,18 +420,17 @@ public class ZipFile {
 		fileHeader[42] = (byte)(headOffset & 0xFF);
 		
 		//File name
-		byte[] textByte = fileName.getBytes();
-		for(int i=0; i<textByte.length; i++) {
-			fileHeader[46 + i] = textByte[i];
+		for(int i=0; i<fileNameByte.length; i++) {
+			fileHeader[46 + i] = fileNameByte[i];
 		}
 		//Extra field
 		for(int j=0; j<extraField.length; j++) {
-			fileHeader[46 + fileName.length() + j] = extraField[j];
+			fileHeader[46 + fileNameByte.length + j] = extraField[j];
 		}
 		byte[] commentByte = fileComment.getBytes();
 		//Comment
 		for(int i=0; i<commentByte.length; i++) {
-			fileHeader[46 + fileName.length() + extraFieldLength + i] = commentByte[i];
+			fileHeader[46 + fileNameByte.length + extraFieldLength + i] = commentByte[i];
 		}
 		
 		return fileHeader;

@@ -5,7 +5,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -17,6 +22,9 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+
+import c9u.C9UDecoder;
+import c9u.C9UString;
 
 import csf.C9Type;
 import csf.ZipFile;
@@ -32,6 +40,7 @@ public class EditPanel extends JPanel implements ActionListener {
 	private ZipFile editFile;
 	private String currCharset = "UTF-8";
 	private JRadioButton utf8Button;
+	private JRadioButton utf16Button;
 	
 	public EditPanel() {
 		super();
@@ -74,7 +83,7 @@ public class EditPanel extends JPanel implements ActionListener {
 		utf8Button.setActionCommand("UTF-8");
 		utf8Button.addActionListener(this);
 		utf8Button.setSelected(true);
-		JRadioButton utf16Button = new JRadioButton("UTF-16");
+		utf16Button = new JRadioButton("UTF-16");
 		utf16Button.setActionCommand("UTF-16");
 		utf16Button.addActionListener(this);
 		JRadioButton utfKRButton = new JRadioButton("EUC-KR");
@@ -127,11 +136,27 @@ public class EditPanel extends JPanel implements ActionListener {
         });
         saveButton.addActionListener(new ActionListener() {
         	public void actionPerformed(ActionEvent arg0) {
-				editFile.setData(contentFile.getText().getBytes(Charset.forName(currCharset)));
-				editFile.setModify(false);
-				editFile.setSave(true);
-				fileName.setText(fileName.getText().substring(0, fileName.getText().length() - 2));
-				Fenetre.getInstance().getCsf().setModify(true);
+        		if (editFile.getType() == C9Type.Text) {
+					editFile.setData(contentFile.getText().getBytes(Charset.forName(currCharset)));
+					editFile.setModify(false);
+					editFile.setSave(true);
+					fileName.setText(fileName.getText().substring(0, fileName.getText().length() - 2));
+					Fenetre.getInstance().getCsf().setModify(true);
+        		}
+        		if (editFile.getType() == C9Type.C9U) {
+        			String[] listNewString = contentFile.getText().split("\n");
+        			ArrayList<C9UString> listOldString = editFile.getListString();
+        			for(int i = 0; i<listOldString.size(); i++) {
+        				if (listNewString[i] != "") {
+        					listOldString.get(i).setNewString(listNewString[i]);
+        				}
+        			}
+        			editFile.rewriteC9UFile();
+        			editFile.setModify(false);
+        			editFile.setSave(true);
+        			fileName.setText(fileName.getText().substring(0, fileName.getText().length() - 2));
+					Fenetre.getInstance().getCsf().setModify(true);
+        		}
 			}
         });
         
@@ -143,7 +168,27 @@ public class EditPanel extends JPanel implements ActionListener {
 	public void setFile(ZipFile pFile) {
 		editFile = pFile;
 		if (editFile.getType() != C9Type.Text) {
-			Fenetre.getInstance().showErreur("Cannot open file of this format");
+			if (editFile.getType() != C9Type.C9U) {
+				Fenetre.getInstance().showErreur("Cannot open file of this format");
+			} else {
+				BufferedInputStream fileBuffStream = new BufferedInputStream(new ByteArrayInputStream(editFile.getData()));
+				try {
+					ArrayList<C9UString> listString = C9UDecoder.parse(fileBuffStream);
+					editFile.setListString(listString);
+					String textContent = "";
+					Iterator<C9UString> iString = listString.iterator();
+					while (iString.hasNext()) {
+						textContent += iString.next().getOldString() + "\n";
+					}
+					contentFile.setText(textContent);
+					fileName.setText("File : " + pFile.getName());
+					currCharset = "UTF-16";
+					utf16Button.setSelected(true);
+					fileBuffStream.close();
+				} catch (IOException e) {
+					Fenetre.getInstance().showErreur(e.getMessage());
+				}
+			}
 		} else {
 			contentFile.setText(pFile.getTextData());
 			currCharset = "UTF-8";
@@ -158,7 +203,7 @@ public class EditPanel extends JPanel implements ActionListener {
 
 	
 	public void actionPerformed(ActionEvent e) {
-		if (editFile != null && !currCharset.equals(e.getActionCommand())) {
+		if (editFile != null && !currCharset.equals(e.getActionCommand()) && editFile.getType() == C9Type.Text) {
 			if (editFile.isModify()) {
 				byte[] textByte = contentFile.getText().getBytes(Charset.forName(currCharset));
 				this.setText(new String(textByte, Charset.forName(e.getActionCommand())));

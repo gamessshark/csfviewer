@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import csf.LittleEndianDataInputStream;
 import csf.LittleEndianDataOutputStream;
@@ -35,7 +36,67 @@ public class C9UDecoder {
 						foundFont = true;
 					} else {
 						inStream.reset();
-						inStream.read();
+						if (detectFont("BaseFont_npc", c9uReader)) {
+							foundFont = true;
+						} else {
+							inStream.reset();
+							if (detectFont("BaseFont_out", c9uReader)) {
+								foundFont = true;
+							} else {
+								inStream.reset();
+								if (detectFont("BaseFont_Value11", c9uReader)) {
+									foundFont = true;
+								} else {
+									inStream.reset();
+									if (detectFont("BaseFontS16", c9uReader)) {
+										foundFont = true;
+									} else {
+										inStream.reset();
+										if (detectFont("BaseFontS20", c9uReader)) {
+											foundFont = true;
+										} else {
+											inStream.reset();
+											if (detectFont("BaseFontS32", c9uReader)) {
+												foundFont = true;
+											} else {
+												inStream.reset();
+												if (detectFont("BaseFont_S8", c9uReader)) {
+													foundFont = true;
+												} else {
+													inStream.reset();
+													if (detectFont("NameFont", c9uReader)) {
+														foundFont = true;
+													} else {
+														inStream.reset();
+														if (detectFont("NameFont_Value", c9uReader)) {
+															foundFont = true;
+														} else {
+															inStream.reset();
+															if (detectFont("NameFont_S14", c9uReader)) {
+																foundFont = true;
+															} else {
+																inStream.reset();
+																if (detectFont("ChatBallonFont", c9uReader)) {
+																	foundFont = true;
+																} else {
+																	inStream.reset();
+																	if (detectFont("BaseFontS09", c9uReader)) {
+																		foundFont = true;
+																	} else {
+																		inStream.reset();
+																		inStream.read();
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -43,7 +104,6 @@ public class C9UDecoder {
 			if (foundFont) {
 				int currOffset = fileLength - inStream.available();
 				stringLength = c9uReader.readInt();
-				System.out.println(stringLength);
 				if (stringLength > 0 && stringLength < 1024) {
 					textByte = new char[stringLength - 1];
 					for (int i=0; i<stringLength - 1; i++) {
@@ -66,61 +126,18 @@ public class C9UDecoder {
 		ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
 		LittleEndianDataInputStream c9uReader = new LittleEndianDataInputStream(inStream);
 		LittleEndianDataOutputStream c9uWriter = new LittleEndianDataOutputStream(byteStream);
-		boolean foundFont = false;
-		int stringLength;
-		int i = 0;
 		int fileLength = inStream.available();
 		
-		while (inStream.available() > 0) {
-			inStream.mark(inStream.available());
-			//On detecte les font
-			if (detectFont("BaseFont", c9uReader)) {
-				foundFont = true;
-				c9uWriter.writeInt(9);
-				c9uWriter.write("BaseFont".getBytes());
-				c9uWriter.writeByte(0);
-			} else {
-				inStream.reset();
-				if (detectFont("BaseFontS12", c9uReader)) {
-					foundFont = true;
-					c9uWriter.writeInt(12);
-					c9uWriter.write("BaseFontS12".getBytes());
-					c9uWriter.writeByte(0);
-				} else {
-					inStream.reset();
-					if (detectFont("BaseFontS14", c9uReader)) {
-						foundFont = true;
-						c9uWriter.writeInt(12);
-						c9uWriter.write("BaseFontS14".getBytes());
-						c9uWriter.writeByte(0);
-					} else {
-						inStream.reset();
-						c9uWriter.writeByte(inStream.read());
-					}
-				}
-				
-			}
-			
-			if (foundFont) {
-				int currOffset = fileLength - inStream.available();
-				stringLength = c9uReader.readInt();
-				if (stringLength > 0 && i<listString.size() && currOffset == listString.get(i).getOffset()) {
-					for (int j=0; j<stringLength - 1; j++) {
-						c9uReader.readChar();
-					}
-					c9uReader.readChar();
-						
-					//On écris
-					String newStr = listString.get(i).getNewString();
-					c9uWriter.writeInt(newStr.length() + 1);
-					c9uWriter.writeChars(newStr);
-					c9uWriter.writeShort(0x00);
-					i++;
-				} else {
-					c9uWriter.writeInt(stringLength);
-				}
-			}
-			foundFont = false;
+		Iterator<C9UString> iterStr = listString.iterator();
+		
+		int diff = 0;
+		while (iterStr.hasNext()) {
+			diff += iterStr.next().write(diff, fileLength, c9uReader, c9uWriter);
+		}
+		
+		//On oublie pas d'ecrire la fin du fichier
+		while(c9uReader.available() > 0) {
+			c9uWriter.write(c9uReader.read());
 		}
 		
 		return byteStream.toByteArray();

@@ -27,11 +27,20 @@ public class C9UDecoder {
 				foundFont = true;
 			} else {
 				inStream.reset();
-				inStream.read();
+				if (detectFont("BaseFontS12", c9uReader)) {
+					foundFont = true;
+				} else {
+					inStream.reset();
+					if (detectFont("BaseFontS14", c9uReader)) {
+						foundFont = true;
+					} else {
+						inStream.reset();
+						inStream.read();
+					}
+				}
 			}
 			
 			if (foundFont) {
-				System.out.println("Found BaseFont !");
 				int currOffset = fileLength - inStream.available();
 				stringLength = c9uReader.readInt();
 				System.out.println(stringLength);
@@ -72,15 +81,30 @@ public class C9UDecoder {
 				c9uWriter.writeByte(0);
 			} else {
 				inStream.reset();
-				c9uWriter.writeByte(inStream.read());
+				if (detectFont("BaseFontS12", c9uReader)) {
+					foundFont = true;
+					c9uWriter.writeInt(12);
+					c9uWriter.write("BaseFontS12".getBytes());
+					c9uWriter.writeByte(0);
+				} else {
+					inStream.reset();
+					if (detectFont("BaseFontS14", c9uReader)) {
+						foundFont = true;
+						c9uWriter.writeInt(12);
+						c9uWriter.write("BaseFontS14".getBytes());
+						c9uWriter.writeByte(0);
+					} else {
+						inStream.reset();
+						c9uWriter.writeByte(inStream.read());
+					}
+				}
+				
 			}
 			
 			if (foundFont) {
-				System.out.println("Found BaseFont to Write!");
 				int currOffset = fileLength - inStream.available();
 				stringLength = c9uReader.readInt();
 				if (stringLength > 0 && i<listString.size() && currOffset == listString.get(i).getOffset()) {
-					System.out.println("I can");
 					for (int j=0; j<stringLength - 1; j++) {
 						c9uReader.readChar();
 					}
@@ -93,7 +117,6 @@ public class C9UDecoder {
 					c9uWriter.writeShort(0x00);
 					i++;
 				} else {
-					System.out.println("I cannot");
 					c9uWriter.writeInt(stringLength);
 				}
 			}

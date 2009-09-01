@@ -173,12 +173,21 @@ public class EditPanel extends JPanel implements ActionListener {
 			} else {
 				BufferedInputStream fileBuffStream = new BufferedInputStream(new ByteArrayInputStream(editFile.getData()));
 				try {
-					ArrayList<C9UString> listString = C9UDecoder.parse(fileBuffStream);
-					editFile.setListString(listString);
+					ArrayList<C9UString> listString;
+					if (editFile.getListString() == null) {
+						listString = C9UDecoder.parse(fileBuffStream);
+						editFile.setListString(listString);
+					}
+					listString = editFile.getListString();
 					String textContent = "";
 					Iterator<C9UString> iString = listString.iterator();
 					while (iString.hasNext()) {
-						textContent += iString.next().getOldString() + "\n";
+						C9UString strTemp = iString.next();
+						if (strTemp.getNewString() == null) {
+							textContent += strTemp.getOldString() + "\n";
+						} else {
+							textContent += strTemp.getNewString() + "\n";
+						}
 					}
 					contentFile.setText(textContent);
 					fileName.setText("File : " + pFile.getName());
